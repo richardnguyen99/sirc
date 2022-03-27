@@ -136,8 +136,8 @@ int main(int argc, const char **argv)
         exit(EXIT_FAILURE);
     }
 
+    FD_ZERO(&master);
     FD_SET(sockfd, &master);
-
     fdmax = sockfd;
 
     for (;;)
@@ -170,6 +170,24 @@ int main(int argc, const char **argv)
                         fdmax = newfd;
 
                     cout << "[SIRC SERVER] new connection from socket " << inet_ntop(clientaddr.ss_family, get_in_addr((struct sockaddr *)&clientaddr), remoteipv4, INET_ADDRSTRLEN) << "\n";
+
+                    memset(buf, '\0', BUFLEN);
+                    strcpy(buf, "A user has joined the server");
+                    for (int j = 0; j <= fdmax; j++)
+                    {
+                        if (FD_ISSET(j, &master) && j != i && j != newfd)
+                        {
+                            int sentbyte;
+                            if ((sentbyte = send(j, buf, strlen(buf), 0)) == -1)
+                            {
+                                cerr << "server fd: " << sockfd << " socket fd: " << j << "\n";
+                                cerr << "send error: " << strerror(errno) << "\n";
+                                continue;
+                            }
+
+                            cout << "Sent " << std::string(buf) << " - " << sentbyte << "\n";
+                        }
+                    }
                 }
                 else
                 {
@@ -179,20 +197,32 @@ int main(int argc, const char **argv)
 
                     if (nbytes > 0)
                     {
-                        // for (int j = 0; j <= fdmax; j++)
-                        //{
-                        // if (FD_ISSET(j, &master))
-                        //{
-                        // if (j != sockfd && j != i)
-                        //{
-                        //// if (recv(i, buf, nbytes, 0) == -1)
-                        //// cerr << "send error: " << strerror(errno) << "\n";
-                        //}
-                        //}
-                        //}
+                        for (int j = 0; j <= fdmax; j++)
+                        {
+                            if (FD_ISSET(j, &master))
+                            {
+                                if (j != sockfd)
+                                {
+                                    // if (recv(i, buf, nbytes, 0) == -1)
+                                    //{
+                                    // cerr << "receive error: " << strerror(errno) << "\n";
+                                    // continue;
+                                    //}
 
-                        cout << std::string(buf)
-                             << "\n";
+                                    int sentbyte;
+                                    if ((sentbyte = send(j, buf, nbytes, 0)) == -1)
+                                    {
+                                        cerr << "send error: " << strerror(errno) << "\n";
+                                        continue;
+                                    }
+
+                                    cout << "Sent " << std::string(buf) << " - " << sentbyte << "\n";
+                                }
+                            }
+                        }
+
+                        // cout << std::string(buf)
+                        //<< "\n";
 
                         continue;
                     }
